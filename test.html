@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Sandbox WebSocket Test</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
+        input { width: 75%; padding: 10px; font-size: 16px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        #output { margin-top: 20px; padding: 15px; background: #f4f4f5; border-radius: 5px; min-height: 100px; white-space: pre-wrap; font-size: 16px; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <h2> Multi-Agent Sandbox Test Client</h2>
+    <input type="text" id="promptInput" placeholder="Type a prompt for the AI...">
+    <button onclick="sendPrompt()">Send</button>
+    <div id="output">AI responses will stream here in real-time...</div>
+
+    <script>
+        // Open a direct live line to your running FastAPI backend
+        const ws = new WebSocket("ws://127.0.0.1:8050/ws/sandbox");
+        const outputDiv = document.getElementById("output");
+
+        ws.onopen = () => {
+            outputDiv.innerHTML = "✅ Connected to free backend stream! Type a prompt above.";
+        };
+
+        ws.onmessage = (event) => {
+            if (event.data === " [EOF]") {
+                outputDiv.innerHTML += "\n\n🟢 [Generation Complete]";
+            } else {
+                // Append tokens word-by-word as they arrive from GitHub
+                if (outputDiv.innerText.startsWith("✅") || outputDiv.innerText.startsWith("AI responses")) {
+                    outputDiv.innerHTML = "";
+                }
+                outputDiv.innerHTML += event.data;
+            }
+        };
+
+        ws.onclose = () => {
+            outputDiv.innerHTML = "❌ Disconnected from backend.";
+        };
+
+        function sendPrompt() {
+            const input = document.getElementById("promptInput");
+            if (input.value.trim() !== "") {
+                outputDiv.innerHTML = "Thinking...";
+                ws.send(input.value);
+                input.value = "";
+            }
+        }
+    </script>
+</body>
+</html>
