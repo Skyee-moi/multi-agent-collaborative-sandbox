@@ -1,76 +1,136 @@
 import os
+import json
 import asyncio
+from pathlib import Path
+from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from openai import AsyncOpenAI
-from dotenv import load_dotenv
 
-# Load environmental configurations from our root .env file
-load_dotenv()
+# Load .env file from root directory
+env_path = Path(__file__).resolve().parent.parent / '.env'
+load_dotenv(dotenv_path=env_path, override=True)
 
-app = FastAPI(title="Multi-Agent AI Collaborative Sandbox - Phase 2")
+app = FastAPI(title="Multi-Agent Collaborative Sandbox API")
 
-# Allow local frontend testing scripts to securely connect to our server
+# Allow CORS so WebSockets connect cleanly
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize client using GitHub's free endpoint matrix
-ai_client = AsyncOpenAI(
-    base_url="https://models.inference.ai.azure.com",
-    api_key=os.environ.get("GITHUB_TOKEN")
+groq_key = os.getenv("GROQ_API_KEY")
+if not groq_key:
+    raise ValueError("GROQ_API_KEY is missing from your .env file!")
+
+client = AsyncOpenAI(
+    base_url="https://api.groq.com/openai/v1",
+    api_key=groq_key
 )
 
-async def stream_gpt_response(prompt: str, websocket: WebSocket):
-    """
-    Calls the free model marketplace asynchronously and streams
-    the raw text data over the persistent open connection.
-    """
-    try:
-        response_stream = await ai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are the Supervisor Agent of a multi-agent sandbox. Keep answers structured."},
-                {"role": "user", "content": prompt}
-            ],
-            stream=True
-        )
+TEXT_MODEL = "llama-3.3-70b-versatile"
+VISION_MODEL = "llama-3.3-70b-versatile"
 
-        # Iterate through response frames as they drop in real time
-        async for chunk in response_stream:
-            # Safety Check: Verify the chunk lists choice arrays before indexing
-            if chunk.choices and len(chunk.choices) > 0:
-                token = chunk.choices[0].delta.content
-                if token:
-                    # Instantly dispatch text token down the WebSocket pipe
-                    await websocket.send_text(token)
-                    
-    except Exception as e:
-        await websocket.send_text(f"\n[Backend Error]: {str(e)}")
+@app.get("/")
+async def serve_frontend():
+    html_file = Path(__file__).resolve().parent.parent / "test.html"
+    return FileResponse(html_file)
 
-@app.websocket("/ws/sandbox")
+@app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """
-    Monitors incoming real-time socket handshakes from user dashboards.
-    """
     await websocket.accept()
-    print("🚀 Connected: Client channel opened securely.")
+    print("🔌 Client connected to WebSocket")
     
     try:
         while True:
-            # Await incoming string prompts from the interface canvas
-            user_prompt = await websocket.receive_text()
-            print(f"📥 Prompt Received: '{user_prompt}'")
+            raw_data = await websocket.receive_text()
+            print(f"📩 Received from browser: {raw_data[:100]}...")
             
-            # Fire up our safe streaming transmission loop
-            await stream_gpt_response(user_prompt, websocket)
+            prompt = raw_data
+            image_data = None
             
-            # Send End of File confirmation flag to let client close stream graphics
-            await websocket.send_text(" [EOF]")
-            
+            try:
+                parsed = json.loads(raw_data)
+                if isinstance(parsed, dict):
+                    prompt = parsed.get("prompt", parsed.get("message", ""))
+                    image_data = parsed.get("image", None)
+            except json.JSONDecodeError:
+                pass
+
+            active_model = VISION_MODEL if image_data else TEXT_MODEL
+            worker_name = "Vision Agent" if image_data else "Primary Agent"
+
+            # Calculate approximate image size from base64 string so text models can process it
+            image_context = ""
+            if image_data:
+                try:
+                    base64_str = image_data.split(",")[1] if "," in image_data else image_data
+                    approx_bytes = len(base64_str) * 3 / 4
+                    approx_kb = round(approx_bytes / 1024, 2)
+                    image_context = f"[Attached Image Metadata: Approximate File Size ~{approx_kb} KB]. "
+                except Exception:
+                    image_context = "[Attached Image Received]. "
+
+            try:
+                # 1. Supervisor Orchestration Event
+                supervisor_event = {
+                    "type": "agent_start",
+                    "agent": "Supervisor",
+                    "role": "Orchestrator",
+                    "content": f"Analyzing task... Assigning {worker_name} ({active_model})."
+                }
+                await websocket.send_text(json.dumps(supervisor_event))
+                await asyncio.sleep(0.3)
+
+                # 2. Worker Agent Execution
+                agent_start = {
+                    "type": "agent_start",
+                    "agent": worker_name,
+                    "role": "Executor",
+                    "content": ""
+                }
+                await websocket.send_text(json.dumps(agent_start))
+
+                user_content = f"{image_context}User prompt: {prompt if prompt else 'Describe the uploaded image details.'}"
+                messages = [{"role": "user", "content": user_content}]
+
+                response = await client.chat.completions.create(
+                    model=active_model,
+                    messages=messages,
+                    stream=True
+                )
+                
+                async for chunk in response:
+                    content = chunk.choices[0].delta.content
+                    if content:
+                        chunk_event = {
+                            "type": "stream_chunk",
+                            "agent": worker_name,
+                            "content": content
+                        }
+                        await websocket.send_text(json.dumps(chunk_event))
+                
+                complete_event = {
+                    "type": "agent_complete",
+                    "agent": worker_name,
+                    "status": "done"
+                }
+                await websocket.send_text(json.dumps(complete_event))
+
+            except Exception as api_err:
+                print(f"❌ API Error: {api_err}")
+                error_event = {
+                    "type": "error",
+                    "agent": "System",
+                    "content": f"Error: {str(api_err)}"
+                }
+                await websocket.send_text(json.dumps(error_event))
+
     except WebSocketDisconnect:
-        print("❌ Disconnected: Client channel terminated safely.")
+        print("🔌 Client disconnected")
+    except Exception as e:
+        print(f"❌ WebSocket error: {e}")
