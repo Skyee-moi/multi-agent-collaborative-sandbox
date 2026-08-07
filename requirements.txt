@@ -3,3 +3,10 @@ uvicorn
 websockets
 openai
 python-dotenv
+redis
+chromadb
+httpx
+pillow
+pypdf
+python-docx
+python-pptx

@@ -4,67 +4,407 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multi-Agent Collaborative Sandbox</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Chart.js for Data Visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        body { background-color: #0f172a; color: #f8fafc; margin: 0; padding: 20px; display: flex; flex-direction: column; height: 100vh; }
-        .header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid #334155; }
-        .status { font-weight: bold; font-size: 14px; padding: 4px 12px; border-radius: 20px; background: #334155; color: #94a3b8; }
-        .status.online { background: #064e3b; color: #34d399; }
+        :root {
+            --bg-dark: #070a12;
+            --card-bg: rgba(17, 24, 39, 0.75);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary-glow: #6366f1;
+            --supervisor-color: #a855f7;
+            --doc-color: #10b981;
+            --viz-color: #06b6d4;
+            --code-color: #22c55e;
+            --vision-color: #f59e0b;
+            --image-color: #ec4899;
+        }
+
+        * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
         
-        #chat-container { flex: 1; overflow-y: auto; margin: 20px 0; display: flex; flex-direction: column; gap: 15px; padding-right: 10px; }
-        
-        .agent-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 15px; transition: all 0.2s ease; }
-        .agent-card.user { border-left: 4px solid #10b981; background: #064e3b22; }
-        .agent-card.supervisor { border-left: 4px solid #a855f7; background: #1e1b4b; }
-        .agent-card.primary { border-left: 4px solid #3b82f6; }
-        .agent-card.vision { border-left: 4px solid #f59e0b; }
-        
-        .agent-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 8px; font-size: 14px; color: #94a3b8; }
-        .agent-name { color: #f8fafc; }
-        .agent-content { white-space: pre-wrap; line-height: 1.5; font-size: 15px; }
-        
-        .input-box { display: flex; gap: 10px; background: #1e293b; padding: 12px; border-radius: 10px; border: 1px solid #334155; }
-        input[type="text"] { flex: 1; background: transparent; border: none; color: white; outline: none; font-size: 15px; }
-        button { background: #2563eb; color: white; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        button:hover { background: #1d4ed8; }
-        .file-label { cursor: pointer; padding: 8px 12px; background: #334155; border-radius: 6px; font-size: 14px; }
+        body {
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.12) 0%, transparent 40%);
+            color: #f1f5f9;
+            margin: 0;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: rgba(17, 24, 39, 0.6);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .header-title h1 {
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-badges {
+            display: flex;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        .badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #94a3b8;
+            border: 1px solid var(--border-color);
+        }
+
+        .status {
+            font-weight: 600;
+            font-size: 13px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.04);
+            color: #94a3b8;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status.online {
+            background: rgba(16, 185, 129, 0.12);
+            color: #34d399;
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94a3b8;
+        }
+
+        .status.online .status-dot {
+            background: #34d399;
+            box-shadow: 0 0 10px #34d399;
+        }
+
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            padding-right: 8px;
+        }
+
+        .agent-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 18px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .agent-card.user {
+            border-left: 4px solid #38bdf8;
+            background: rgba(56, 189, 248, 0.05);
+        }
+
+        .agent-card.supervisor {
+            border-left: 4px solid var(--supervisor-color);
+            box-shadow: 0 0 25px -5px rgba(168, 85, 247, 0.15);
+        }
+
+        .agent-card.doc_agent { border-left: 4px solid var(--doc-color); }
+        .agent-card.visualization { border-left: 4px solid var(--viz-color); }
+        .agent-card.code_executor { border-left: 4px solid var(--code-color); }
+        .agent-card.vision { border-left: 4px solid var(--vision-color); }
+        .agent-card.image_generator { border-left: 4px solid var(--image-color); }
+        .agent-card.memory {
+            border-left: 4px solid var(--primary-glow);
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        .agent-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .agent-name {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 15px;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .agent-role {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #cbd5e1;
+            letter-spacing: 0.5px;
+        }
+
+        .agent-content {
+            white-space: pre-wrap;
+            line-height: 1.65;
+            font-size: 14.5px;
+            color: #cbd5e1;
+        }
+
+        /* Widgets */
+        .chart-container {
+            margin-top: 16px;
+            background: rgba(10, 15, 26, 0.8);
+            padding: 20px;
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
+            height: 360px;
+            position: relative;
+        }
+
+        .code-box {
+            margin-top: 14px;
+            background: #060913;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 14px;
+            font-family: 'Fira Code', monospace;
+            font-size: 13.5px;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            color: #94a3b8;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .code-output {
+            background: #02040a;
+            color: #34d399;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 8px;
+            white-space: pre-wrap;
+            border: 1px solid rgba(52, 211, 153, 0.2);
+        }
+
+        .image-preview {
+            margin-top: 16px;
+            border-radius: 14px;
+            max-width: 100%;
+            max-height: 440px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .attached-file-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        /* Input Controls */
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(16px);
+            padding: 16px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .file-preview-bar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .file-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #cbd5e1;
+        }
+
+        .file-pill .remove-btn {
+            cursor: pointer;
+            color: #ef4444;
+            font-weight: bold;
+            margin-left: 4px;
+        }
+
+        .input-box {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: white;
+            outline: none;
+            font-size: 15px;
+        }
+
+        .file-btn {
+            cursor: pointer;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            font-size: 14px;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .file-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: var(--primary-glow);
+        }
+
+        button.send-btn {
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+            transition: transform 0.15 ease, box-shadow 0.15s ease;
+        }
+
+        button.send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(168, 85, 247, 0.45);
+        }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h2>🤖 Multi-Agent Collaborative Sandbox</h2>
-        <div id="status" class="status">Connecting...</div>
+        <div class="header-title">
+            <h1>🚀 Multi-Agent Collaborative Sandbox</h1>
+            <div class="header-badges">
+                <span class="badge">Dual Storage Memory</span>
+                <span class="badge">Doc & File Analyst</span>
+                <span class="badge">Chart.js Viz</span>
+            </div>
+        </div>
+        <div id="status" class="status">
+            <span class="status-dot"></span>
+            <span id="status-text">Connecting...</span>
+        </div>
     </div>
 
     <div id="chat-container"></div>
 
-    <div class="input-box">
-        <label class="file-label" title="Attach Image">
-            📷 <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="handleImageSelect(event)">
-        </label>
-        <span id="fileName" style="font-size:12px; color:#94a3b8; align-self:center;"></span>
-        <input type="text" id="promptInput" placeholder="Type your message or upload an image..." onkeydown="if(event.key==='Enter') sendMessage()">
-        <button onclick="sendMessage()">Send</button>
+    <div class="input-container">
+        <div id="file-preview-bar" class="file-preview-bar"></div>
+        <div class="input-box">
+            <!-- Image Attachment -->
+            <label class="file-btn" title="Attach Image">
+                📷 Image
+                <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="handleImageSelect(event)">
+            </label>
+            <!-- Document Attachment (PDF, DOCX, PPTX, CSV, TXT, JSON, MD) -->
+            <label class="file-btn" title="Attach Document (PDF, Word, PPT, CSV, Text)">
+                📄 Document
+                <input type="file" id="docInput" accept=".pdf,.docx,.doc,.pptx,.ppt,.csv,.txt,.json,.md,.py,.js" style="display:none;" onchange="handleDocSelect(event)">
+            </label>
+
+            <input type="text" id="promptInput" placeholder="Ask a question, upload a PDF/Word/CSV file, request a chart, generate an image..." onkeydown="if(event.key==='Enter') sendMessage()">
+            <button class="send-btn" onclick="sendMessage()">Send ✨</button>
+        </div>
     </div>
 
     <script>
         const statusEl = document.getElementById("status");
+        const statusText = document.getElementById("status-text");
         const chatContainer = document.getElementById("chat-container");
+        const filePreviewBar = document.getElementById("file-preview-bar");
+        
         let base64Image = null;
+        let fileDataPayload = null;
+        let fileNamePayload = null;
         let activeAgentCard = null;
+        let chartCounter = 0;
 
-        // Fallback to 127.0.0.1:8000 if loaded directly
         const host = window.location.host || '127.0.0.1:8000';
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${host}/ws`;
 
-        console.log("🔌 Connecting to WebSocket at:", wsUrl);
+        console.log("🔌 Connecting to WebSocket:", wsUrl);
         const ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
             console.log("✅ WebSocket Connected!");
-            statusEl.innerText = "● Online";
+            statusText.innerText = "System Online";
             statusEl.classList.add("online");
         };
 
@@ -72,7 +412,7 @@
 
         ws.onclose = () => {
             console.warn("🔌 WebSocket Disconnected.");
-            statusEl.innerText = "● Offline";
+            statusText.innerText = "System Offline";
             statusEl.classList.remove("online");
         };
 
@@ -82,13 +422,19 @@
 
                 if (data.type === "agent_start") {
                     const card = document.createElement("div");
-                    const agentClass = data.agent.toLowerCase().includes("supervisor") ? "supervisor" : 
-                                     data.agent.toLowerCase().includes("vision") ? "vision" : "primary";
+                    const agentLower = data.agent.toLowerCase();
+                    const agentClass = agentLower.includes("supervisor") ? "supervisor" : 
+                                     agentLower.includes("document") ? "doc_agent" : 
+                                     agentLower.includes("visualization") ? "visualization" : 
+                                     agentLower.includes("code") ? "code_executor" : 
+                                     agentLower.includes("vision") ? "vision" : 
+                                     agentLower.includes("image") ? "image_generator" : "writer";
                     
                     card.className = `agent-card ${agentClass}`;
                     card.innerHTML = `
                         <div class="agent-header">
-                            <span class="agent-name">🤖 ${data.agent} (${data.role || 'Agent'})</span>
+                            <span class="agent-name">🤖 ${data.agent}</span>
+                            <span class="agent-role">${data.role || 'Agent'}</span>
                         </div>
                         <div class="agent-content">${data.content || ''}</div>
                     `;
@@ -101,6 +447,87 @@
                         activeAgentCard.innerText += data.content;
                         chatContainer.scrollTop = chatContainer.scrollHeight;
                     }
+
+                } else if (data.type === "memory_retrieved") {
+                    const card = document.createElement("div");
+                    card.className = "agent-card memory";
+                    card.innerHTML = `
+                        <div class="agent-header">
+                            <span class="agent-name">🧠 ChromaDB Vector Memory</span>
+                        </div>
+                        <div class="agent-content" style="font-size:13px; color:#a5b4fc;">${data.content}</div>
+                    `;
+                    chatContainer.appendChild(card);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                } else if (data.type === "chart_render") {
+                    if (activeAgentCard) {
+                        chartCounter++;
+                        const canvasId = `chart-${chartCounter}`;
+                        const chartDiv = document.createElement("div");
+                        chartDiv.className = "chart-container";
+                        chartDiv.innerHTML = `<canvas id="${canvasId}"></canvas>`;
+                        activeAgentCard.parentNode.appendChild(chartDiv);
+
+                        setTimeout(() => {
+                            const ctx = document.getElementById(canvasId).getContext('2d');
+                            new Chart(ctx, {
+                                type: data.chart.type || 'bar',
+                                data: {
+                                    labels: data.chart.labels || [],
+                                    datasets: (data.chart.datasets || []).map(ds => ({
+                                        ...ds,
+                                        backgroundColor: ds.backgroundColor || ['#38bdf8', '#818cf8', '#34d399', '#f59e0b', '#ec4899'],
+                                        borderColor: ds.borderColor || '#1e293b',
+                                        borderWidth: 1.5
+                                    }))
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: {
+                                        title: { display: true, text: data.chart.title || 'Chart', color: '#f8fafc', font: { size: 16, weight: 'bold' } },
+                                        legend: { labels: { color: '#cbd5e1' } }
+                                    },
+                                    scales: {
+                                        x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                                        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                                    }
+                                }
+                            });
+                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                        }, 100);
+                    }
+
+                } else if (data.type === "code_execution_result") {
+                    if (activeAgentCard) {
+                        const codeBox = document.createElement("div");
+                        codeBox.className = "code-box";
+                        const outputText = data.result.success ? 
+                            (data.result.output || "[Code executed cleanly with zero stdout output]") : 
+                            `❌ Execution Error:\n${data.result.error}`;
+                        
+                        codeBox.innerHTML = `
+                            <div class="code-header">
+                                <span>💻 Live Python Sandbox Execution</span>
+                                <span style="color:${data.result.success ? '#34d399' : '#f87171'}">${data.result.success ? '✔ SUCCESS' : '✖ ERROR'}</span>
+                            </div>
+                            <div class="code-output">${outputText}</div>
+                        `;
+                        activeAgentCard.parentNode.appendChild(codeBox);
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    }
+
+                } else if (data.type === "image_render") {
+                    if (activeAgentCard) {
+                        const img = document.createElement("img");
+                        img.className = "image-preview";
+                        img.src = data.image_url;
+                        img.alt = data.caption || "Generated AI Image";
+                        activeAgentCard.parentNode.appendChild(img);
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    }
+
                 } else if (data.type === "error") {
                     const errorCard = document.createElement("div");
                     errorCard.className = "agent-card";
@@ -109,51 +536,85 @@
                     chatContainer.appendChild(errorCard);
                 }
             } catch (e) {
-                const textCard = document.createElement("div");
-                textCard.className = "agent-card";
-                textCard.innerHTML = `<div class="agent-content">${event.data}</div>`;
-                chatContainer.appendChild(textCard);
+                console.error("Message parsing error:", e);
             }
         };
 
         function handleImageSelect(e) {
             const file = e.target.files[0];
             if (file) {
-                document.getElementById("fileName").innerText = file.name;
                 const reader = new FileReader();
-                reader.onload = (event) => { base64Image = event.target.result; };
+                reader.onload = (event) => {
+                    base64Image = event.target.result;
+                    renderFilePill(file.name, "image");
+                };
                 reader.readAsDataURL(file);
             }
+        }
+
+        function handleDocSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                fileNamePayload = file.name;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    fileDataPayload = event.target.result;
+                    renderFilePill(file.name, "document");
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function renderFilePill(name, type) {
+            filePreviewBar.innerHTML = `
+                <div class="file-pill">
+                    <span>${type === 'image' ? '📷 Image:' : '📄 Doc:'} ${name}</span>
+                    <span class="remove-btn" onclick="clearAttachments()">✕</span>
+                </div>
+            `;
+        }
+
+        function clearAttachments() {
+            base64Image = null;
+            fileDataPayload = null;
+            fileNamePayload = null;
+            filePreviewBar.innerHTML = "";
+            document.getElementById("imageInput").value = "";
+            document.getElementById("docInput").value = "";
         }
 
         function sendMessage() {
             const input = document.getElementById("promptInput");
             const prompt = input.value.trim();
-            if (!prompt && !base64Image) return;
+            if (!prompt && !base64Image && !fileDataPayload) return;
 
             if (ws.readyState !== WebSocket.OPEN) {
-                alert("WebSocket is offline. Please refresh http://127.0.0.1:8000!");
+                alert("WebSocket is offline. Refreshing...");
                 return;
             }
 
-            // User message bubble
             const userCard = document.createElement("div");
             userCard.className = "agent-card user";
-            let contentHtml = `<strong>👤 You:</strong> ${prompt}`;
+            let contentHtml = `<strong>👤 You:</strong> ${prompt || 'Process uploaded content'}`;
             if (base64Image) {
-                contentHtml += `<br><img src="${base64Image}" style="max-width:200px; max-height:150px; margin-top:8px; border-radius:6px;">`;
+                contentHtml += `<br><img src="${base64Image}" style="max-width:240px; max-height:160px; margin-top:10px; border-radius:10px; border: 1px solid var(--border-color);">`;
+            }
+            if (fileNamePayload) {
+                contentHtml += `<br><span class="attached-file-badge">📄 Attached: ${fileNamePayload}</span>`;
             }
             userCard.innerHTML = `<div class="agent-content">${contentHtml}</div>`;
             chatContainer.appendChild(userCard);
             chatContainer.scrollTop = chatContainer.scrollHeight;
 
-            // Send payload
-            ws.send(JSON.stringify({ prompt: prompt, image: base64Image }));
-            
+            ws.send(JSON.stringify({
+                prompt: prompt,
+                image: base64Image,
+                file_data: fileDataPayload,
+                file_name: fileNamePayload
+            }));
+
             input.value = "";
-            base64Image = null;
-            document.getElementById("fileName").innerText = "";
-            document.getElementById("imageInput").value = "";
+            clearAttachments();
         }
     </script>
 </body>
