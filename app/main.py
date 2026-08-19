@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from openai import AsyncOpenAI
 
 from app.memory.redis_store import RedisMemoryStore
@@ -34,6 +35,11 @@ load_dotenv(dotenv_path=env_path, override=True)
 
 app = FastAPI(title="Multi-Agent Collaborative Sandbox API")
 
+# Mount static files directory
+static_dir = Path(__file__).resolve().parent.parent / "static"
+static_dir.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
 # Allow CORS so WebSockets connect cleanly
 app.add_middleware(
     CORSMiddleware,
@@ -52,8 +58,8 @@ client = AsyncOpenAI(
     api_key=groq_key
 )
 
-PRIMARY_MODEL = "llama-3.3-70b-versatile"
-FAST_MODEL = "llama-3.1-8b-instant"
+PRIMARY_MODEL = "qwen/qwen3.6-27b"
+FAST_MODEL = "openai/gpt-oss-20b"
 
 # Initialize Memory Stores
 redis_store = RedisMemoryStore()
@@ -381,3 +387,10 @@ async def websocket_endpoint(websocket: WebSocket):
         print("[WS] Client disconnected")
     except Exception as e:
         print(f"[WS Error] {e}")
+        try:
+            await websocket.send_text(json.dumps({
+                "type": "error",
+                "content": f"Agent Execution Error: {str(e)}"
+            }))
+        except Exception:
+            pass

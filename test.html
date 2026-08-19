@@ -3,392 +3,526 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Agent Collaborative Sandbox</title>
+    <title>Multi-Agent Collaborative Sandbox (MACS)</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <!-- Chart.js for Data Visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg-dark: #070a12;
-            --card-bg: rgba(17, 24, 39, 0.75);
+            --bg-dark: #070913;
+            --bg-card: rgba(15, 23, 42, 0.75);
             --border-color: rgba(255, 255, 255, 0.08);
-            --primary-glow: #6366f1;
-            --supervisor-color: #a855f7;
-            --doc-color: #10b981;
-            --viz-color: #06b6d4;
-            --code-color: #22c55e;
-            --vision-color: #f59e0b;
-            --image-color: #ec4899;
+            --border-glow: rgba(99, 102, 241, 0.3);
+            
+            --supervisor-color: #c084fc;
+            --writer-color: #818cf8;
+            --doc-color: #34d399;
+            --viz-color: #38bdf8;
+            --code-color: #4ade80;
+            --vision-color: #fbbf24;
+            --image-color: #f472b6;
         }
 
-        * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        
+        * {
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
             background-color: var(--bg-dark);
             background-image: 
-                radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
-                radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.12) 0%, transparent 40%);
-            color: #f1f5f9;
-            margin: 0;
-            padding: 24px;
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.18) 0%, transparent 45%),
+                radial-gradient(circle at 90% 80%, rgba(236, 72, 153, 0.15) 0%, transparent 45%),
+                radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.12) 0%, transparent 50%);
+            background-attachment: fixed;
+            color: #f8fafc;
+            height: 100vh;
             display: flex;
             flex-direction: column;
-            height: 100vh;
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             padding: 16px 24px;
-            background: rgba(17, 24, 39, 0.6);
-            backdrop-filter: blur(16px);
-            border: 1px solid var(--border-color);
-            border-radius: 18px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            overflow: hidden;
         }
 
-        .header-title h1 {
-            margin: 0;
+        /* Ambient Header with Hero Banner */
+        .hero-banner {
+            position: relative;
+            width: 100%;
+            height: 110px;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.05);
+            margin-bottom: 16px;
+            flex-shrink: 0;
+        }
+
+        .hero-banner img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: brightness(0.65) saturate(1.2);
+            transition: transform 0.5s ease;
+        }
+
+        .hero-banner:hover img {
+            transform: scale(1.02);
+        }
+
+        .hero-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, rgba(7, 9, 19, 0.85) 0%, rgba(7, 9, 19, 0.4) 50%, rgba(7, 9, 19, 0.85) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            backdrop-filter: blur(4px);
+        }
+
+        .title-group h1 {
             font-family: 'Outfit', sans-serif;
-            font-size: 22px;
-            font-weight: 800;
-            background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+            font-size: 26px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #38bdf8, #818cf8, #f472b6);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
-        .header-badges {
-            display: flex;
-            gap: 8px;
-            margin-top: 6px;
-        }
-
-        .badge {
-            font-size: 11px;
-            font-weight: 600;
-            padding: 3px 10px;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.05);
+        .title-group p {
             color: #94a3b8;
-            border: 1px solid var(--border-color);
-        }
-
-        .status {
-            font-weight: 600;
             font-size: 13px;
-            padding: 6px 16px;
-            border-radius: 20px;
-            background: rgba(255, 255, 255, 0.04);
-            color: #94a3b8;
-            border: 1px solid var(--border-color);
+            margin-top: 2px;
+            font-weight: 500;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 18px;
+            border-radius: 30px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(12px);
+            font-size: 13px;
+            font-weight: 600;
+            color: #cbd5e1;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .pulse-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ef4444;
+            box-shadow: 0 0 10px #ef4444;
+            transition: all 0.3s ease;
+        }
+
+        .status-badge.online .pulse-dot {
+            background-color: #10b981;
+            box-shadow: 0 0 12px #10b981;
+            animation: pulseGlow 2s infinite;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.25); opacity: 0.75; }
+        }
+
+        /* Agent Dock Toolbar */
+        .agent-dock {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            flex-shrink: 0;
+            scrollbar-width: none;
+        }
+        .agent-dock::-webkit-scrollbar { display: none; }
+
+        .dock-pill {
             display: flex;
             align-items: center;
             gap: 8px;
+            padding: 7px 14px;
+            border-radius: 14px;
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(8px);
+            font-size: 12px;
+            font-weight: 600;
+            color: #cbd5e1;
+            white-space: nowrap;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
         }
 
-        .status.online {
-            background: rgba(16, 185, 129, 0.12);
-            color: #34d399;
-            border-color: rgba(16, 185, 129, 0.3);
+        .dock-pill:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.25);
+            background: rgba(51, 65, 85, 0.8);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
         }
 
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #94a3b8;
-        }
+        .dock-pill.supervisor { border-left: 3px solid var(--supervisor-color); }
+        .dock-pill.writer { border-left: 3px solid var(--writer-color); }
+        .dock-pill.viz { border-left: 3px solid var(--viz-color); }
+        .dock-pill.code { border-left: 3px solid var(--code-color); }
+        .dock-pill.doc { border-left: 3px solid var(--doc-color); }
+        .dock-pill.vision { border-left: 3px solid var(--vision-color); }
+        .dock-pill.image { border-left: 3px solid var(--image-color); }
 
-        .status.online .status-dot {
-            background: #34d399;
-            box-shadow: 0 0 10px #34d399;
-        }
-
-        #chat-container {
+        /* Chat Container & Cards */
+        .chat-container {
             flex: 1;
             overflow-y: auto;
-            margin: 20px 0;
+            padding: 12px;
             display: flex;
             flex-direction: column;
-            gap: 18px;
-            padding-right: 8px;
+            gap: 16px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
         }
 
         .agent-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(12px);
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
             border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 18px;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
-            animation: fadeIn 0.3s ease-out;
+            border-radius: 18px;
+            padding: 18px 22px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+            animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.3s ease;
+            position: relative;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .agent-card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px) scale(0.99); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
         .agent-card.user {
-            border-left: 4px solid #38bdf8;
-            background: rgba(56, 189, 248, 0.05);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.15));
+            border-color: rgba(99, 102, 241, 0.35);
+            align-self: flex-end;
+            max-width: 82%;
         }
 
-        .agent-card.supervisor {
-            border-left: 4px solid var(--supervisor-color);
-            box-shadow: 0 0 25px -5px rgba(168, 85, 247, 0.15);
-        }
-
+        .agent-card.supervisor { border-left: 4px solid var(--supervisor-color); }
+        .agent-card.writer { border-left: 4px solid var(--writer-color); }
         .agent-card.doc_agent { border-left: 4px solid var(--doc-color); }
         .agent-card.visualization { border-left: 4px solid var(--viz-color); }
         .agent-card.code_executor { border-left: 4px solid var(--code-color); }
         .agent-card.vision { border-left: 4px solid var(--vision-color); }
         .agent-card.image_generator { border-left: 4px solid var(--image-color); }
-        .agent-card.memory {
-            border-left: 4px solid var(--primary-glow);
-            background: rgba(99, 102, 241, 0.08);
-        }
+        .agent-card.memory { border-left: 4px solid #818cf8; background: rgba(30, 27, 75, 0.4); }
 
         .agent-header {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            justify-content: space-between;
+            margin-bottom: 10px;
         }
 
         .agent-name {
             font-family: 'Outfit', sans-serif;
             font-weight: 700;
             font-size: 15px;
-            color: #f8fafc;
             display: flex;
             align-items: center;
             gap: 8px;
+            color: #f1f5f9;
         }
 
         .agent-role {
             font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
+            font-weight: 700;
             padding: 3px 10px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.08);
-            color: #cbd5e1;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
             letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
 
         .agent-content {
-            white-space: pre-wrap;
-            line-height: 1.65;
             font-size: 14.5px;
-            color: #cbd5e1;
+            line-height: 1.65;
+            color: #e2e8f0;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
 
-        /* Widgets */
-        .chart-container {
-            margin-top: 16px;
-            background: rgba(10, 15, 26, 0.8);
-            padding: 20px;
-            border-radius: 14px;
+        /* Quick Prompt Chips */
+        .prompt-chips {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            overflow-x: auto;
+            flex-shrink: 0;
+            scrollbar-width: none;
+        }
+        .prompt-chips::-webkit-scrollbar { display: none; }
+
+        .chip {
+            background: rgba(255, 255, 255, 0.04);
             border: 1px solid var(--border-color);
-            height: 360px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #94a3b8;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+
+        .chip:hover {
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+            border-color: rgba(99, 102, 241, 0.4);
+            transform: translateY(-1px);
+        }
+
+        /* Chart & Code Display Boxes */
+        .chart-container {
             position: relative;
+            width: 100%;
+            height: 280px;
+            margin-top: 14px;
+            background: rgba(15, 23, 42, 0.9);
+            padding: 16px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .code-box {
-            margin-top: 14px;
-            background: #060913;
-            border-radius: 12px;
+            margin-top: 12px;
+            background: #090d16;
+            border-radius: 14px;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 14px;
+            overflow: hidden;
             font-family: 'Fira Code', monospace;
-            font-size: 13.5px;
         }
 
         .code-header {
             display: flex;
             justify-content: space-between;
-            color: #94a3b8;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 8px 16px;
             font-size: 12px;
-            margin-bottom: 8px;
+            color: #94a3b8;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
         }
 
         .code-output {
-            background: #02040a;
+            padding: 14px;
+            font-size: 13px;
             color: #34d399;
-            padding: 12px;
-            border-radius: 8px;
-            margin-top: 8px;
             white-space: pre-wrap;
-            border: 1px solid rgba(52, 211, 153, 0.2);
         }
 
-        .image-preview {
-            margin-top: 16px;
-            border-radius: 14px;
+        .image-preview-render {
+            margin-top: 12px;
             max-width: 100%;
-            max-height: 440px;
-            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s ease;
         }
+        .image-preview-render:hover { transform: scale(1.01); }
 
-        .attached-file-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(56, 189, 248, 0.15);
-            color: #38bdf8;
-            border: 1px solid rgba(56, 189, 248, 0.3);
-            padding: 4px 10px;
-            border-radius: 8px;
-            font-size: 12px;
-            margin-top: 8px;
-        }
-
-        /* Input Controls */
-        .input-container {
+        /* Input Controls Console */
+        .input-console {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glow);
+            border-radius: 24px;
+            padding: 10px 14px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            background: rgba(17, 24, 39, 0.75);
-            backdrop-filter: blur(16px);
-            padding: 16px;
-            border-radius: 20px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            gap: 8px;
+            flex-shrink: 0;
         }
 
         .file-preview-bar {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
+            padding-left: 6px;
         }
 
         .file-pill {
-            display: inline-flex;
+            display: flex;
             align-items: center;
-            gap: 6px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid var(--border-color);
+            gap: 8px;
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            color: #c7d2fe;
             padding: 4px 12px;
-            border-radius: 12px;
+            border-radius: 14px;
             font-size: 12px;
-            color: #cbd5e1;
+            font-weight: 500;
         }
 
         .file-pill .remove-btn {
             cursor: pointer;
-            color: #ef4444;
-            font-weight: bold;
-            margin-left: 4px;
+            color: #f87171;
+            font-weight: 700;
         }
 
-        .input-box {
+        .input-row {
             display: flex;
-            gap: 12px;
             align-items: center;
+            gap: 10px;
         }
 
-        input[type="text"] {
+        .action-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: #cbd5e1;
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        .prompt-input {
             flex: 1;
             background: transparent;
             border: none;
-            color: white;
             outline: none;
+            color: #f8fafc;
             font-size: 15px;
+            padding: 8px 12px;
         }
 
-        .file-btn {
-            cursor: pointer;
-            padding: 10px 14px;
-            background: rgba(255, 255, 255, 0.06);
-            border-radius: 10px;
-            font-size: 14px;
-            border: 1px solid var(--border-color);
-            transition: all 0.2s ease;
-            color: #cbd5e1;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
+        .prompt-input::placeholder { color: #64748b; }
 
-        .file-btn:hover {
-            background: rgba(255, 255, 255, 0.12);
-            border-color: var(--primary-glow);
-        }
-
-        button.send-btn {
+        .send-btn {
             background: linear-gradient(135deg, #6366f1, #a855f7);
-            color: white;
             border: none;
-            padding: 10px 24px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-family: 'Outfit', sans-serif;
+            color: #fff;
+            padding: 10px 22px;
+            border-radius: 16px;
             font-weight: 700;
             font-size: 14px;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
-            transition: transform 0.15 ease, box-shadow 0.15s ease;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        button.send-btn:hover {
+        .send-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(168, 85, 247, 0.45);
+            box-shadow: 0 6px 24px rgba(168, 85, 247, 0.5);
+            background: linear-gradient(135deg, #4f46e5, #9333ea);
         }
+
+        input[type="file"] { display: none; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <div class="header-title">
-            <h1>🚀 Multi-Agent Collaborative Sandbox</h1>
-            <div class="header-badges">
-                <span class="badge">Dual Storage Memory</span>
-                <span class="badge">Doc & File Analyst</span>
-                <span class="badge">Chart.js Viz</span>
+    <!-- Hero Header Banner -->
+    <div class="hero-banner">
+        <img src="/static/hero.jpg" alt="MACS AI Multi-Agent Network Banner" onerror="this.style.display='none'">
+        <div class="hero-overlay">
+            <div class="title-group">
+                <h1>⚡ Multi-Agent Sandbox</h1>
+                <p>Collaborative Autonomous Agent Network powered by Groq & RAG Memory</p>
             </div>
-        </div>
-        <div id="status" class="status">
-            <span class="status-dot"></span>
-            <span id="status-text">Connecting...</span>
+            <div class="status-badge" id="statusBadge">
+                <span class="pulse-dot"></span>
+                <span id="statusText">Connecting...</span>
+            </div>
         </div>
     </div>
 
-    <div id="chat-container"></div>
+    <!-- Agent Dock -->
+    <div class="agent-dock">
+        <div class="dock-pill supervisor" onclick="fillPrompt('What active agents are in this sandbox?')">🧠 Supervisor</div>
+        <div class="dock-pill writer" onclick="fillPrompt('Write a summary of quantum computing')">✍️ Writer</div>
+        <div class="dock-pill viz" onclick="fillPrompt('Plot a bar chart of 2026 quarterly revenue')">📊 Data Viz</div>
+        <div class="dock-pill code" onclick="fillPrompt('Write a python script to calculate Fibonacci numbers')">💻 Code Executor</div>
+        <div class="dock-pill doc" onclick="document.getElementById('docInput').click()">📄 Doc Analyst</div>
+        <div class="dock-pill vision" onclick="document.getElementById('imageInput').click()">👁️ Vision Analyst</div>
+        <div class="dock-pill image" onclick="fillPrompt('Generate an image of a futuristic cyberpunk city')">🎨 Image Gen</div>
+    </div>
 
-    <div class="input-container">
-        <div id="file-preview-bar" class="file-preview-bar"></div>
-        <div class="input-box">
-            <!-- Image Attachment -->
-            <label class="file-btn" title="Attach Image">
-                📷 Image
-                <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="handleImageSelect(event)">
-            </label>
-            <!-- Document Attachment (PDF, DOCX, PPTX, CSV, TXT, JSON, MD) -->
-            <label class="file-btn" title="Attach Document (PDF, Word, PPT, CSV, Text)">
-                📄 Document
-                <input type="file" id="docInput" accept=".pdf,.docx,.doc,.pptx,.ppt,.csv,.txt,.json,.md,.py,.js" style="display:none;" onchange="handleDocSelect(event)">
-            </label>
+    <!-- Chat Message Container -->
+    <div class="chat-container" id="chatContainer">
+        <div class="agent-card supervisor">
+            <div class="agent-header">
+                <span class="agent-name">🤖 Supervisor System</span>
+                <span class="agent-role">Orchestrator</span>
+            </div>
+            <div class="agent-content">Welcome to the **Multi-Agent Collaborative Sandbox**! Ask a question, request code execution, upload documents/images, or ask for data visualizations.</div>
+        </div>
+    </div>
 
-            <input type="text" id="promptInput" placeholder="Ask a question, upload a PDF/Word/CSV file, request a chart, generate an image..." onkeydown="if(event.key==='Enter') sendMessage()">
-            <button class="send-btn" onclick="sendMessage()">Send ✨</button>
+    <!-- Quick Prompt Chips -->
+    <div class="prompt-chips">
+        <div class="chip" onclick="fillPrompt('Plot a bar chart comparing Python, JavaScript, Rust, and Go popularity')">📊 Language Popularity Chart</div>
+        <div class="chip" onclick="fillPrompt('Write and execute a Python script that calculates prime numbers up to 100')">💻 Calculate Prime Numbers</div>
+        <div class="chip" onclick="fillPrompt('Generate an image of a futuristic floating island in space with neon aurora')">🎨 Floating Island AI Art</div>
+        <div class="chip" onclick="fillPrompt('Explain the concept of Retrieval Augmented Generation (RAG) simply')">✍️ Explain RAG Concept</div>
+    </div>
+
+    <!-- Input Console -->
+    <div class="input-console">
+        <div class="file-preview-bar" id="filePreviewBar"></div>
+        <div class="input-row">
+            <button class="action-btn" onclick="document.getElementById('imageInput').click()" title="Attach Image">📷</button>
+            <button class="action-btn" onclick="document.getElementById('docInput').click()" title="Attach Document (PDF/DOCX/PPTX)">📄</button>
+            <input type="file" id="imageInput" accept="image/*" onchange="handleImageSelect(event)">
+            <input type="file" id="docInput" accept=".pdf,.docx,.pptx,.txt" onchange="handleDocSelect(event)">
+            
+            <input type="text" class="prompt-input" id="promptInput" placeholder="Message the Agent Sandbox..." onkeypress="if(event.key==='Enter') sendMessage()">
+            
+            <button class="send-btn" onclick="sendMessage()">
+                <span>Send</span>
+                <span>🚀</span>
+            </button>
         </div>
     </div>
 
     <script>
-        const statusEl = document.getElementById("status");
-        const statusText = document.getElementById("status-text");
-        const chatContainer = document.getElementById("chat-container");
-        const filePreviewBar = document.getElementById("file-preview-bar");
-        
+        const chatContainer = document.getElementById("chatContainer");
+        const statusBadge = document.getElementById("statusBadge");
+        const statusText = document.getElementById("statusText");
+        const filePreviewBar = document.getElementById("filePreviewBar");
+
         let base64Image = null;
         let fileDataPayload = null;
         let fileNamePayload = null;
@@ -399,24 +533,31 @@
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${host}/ws`;
 
-        console.log("🔌 Connecting to WebSocket:", wsUrl);
-        const ws = new WebSocket(wsUrl);
+        let ws = null;
 
-        ws.onopen = () => {
-            console.log("✅ WebSocket Connected!");
-            statusText.innerText = "System Online";
-            statusEl.classList.add("online");
-        };
+        function connectWebSocket() {
+            console.log("🔌 Connecting to WebSocket:", wsUrl);
+            ws = new WebSocket(wsUrl);
 
-        ws.onerror = (err) => console.error("❌ WebSocket Error:", err);
+            ws.onopen = () => {
+                console.log("✅ WebSocket Connected!");
+                statusText.innerText = "System Online";
+                statusBadge.classList.add("online");
+            };
 
-        ws.onclose = () => {
-            console.warn("🔌 WebSocket Disconnected.");
-            statusText.innerText = "System Offline";
-            statusEl.classList.remove("online");
-        };
+            ws.onerror = (err) => console.error("❌ WebSocket Error:", err);
 
-        ws.onmessage = (event) => {
+            ws.onclose = () => {
+                console.warn("🔌 WebSocket Disconnected. Retrying in 2 seconds...");
+                statusText.innerText = "Reconnecting...";
+                statusBadge.classList.remove("online");
+                setTimeout(connectWebSocket, 2000);
+            };
+
+            ws.onmessage = handleWebSocketMessage;
+        }
+
+        function handleWebSocketMessage(event) {
             try {
                 const data = JSON.parse(event.data);
 
@@ -521,7 +662,7 @@
                 } else if (data.type === "image_render") {
                     if (activeAgentCard) {
                         const img = document.createElement("img");
-                        img.className = "image-preview";
+                        img.className = "image-preview-render";
                         img.src = data.image_url;
                         img.alt = data.caption || "Generated AI Image";
                         activeAgentCard.parentNode.appendChild(img);
@@ -538,7 +679,13 @@
             } catch (e) {
                 console.error("Message parsing error:", e);
             }
-        };
+        }
+
+        function fillPrompt(text) {
+            const input = document.getElementById("promptInput");
+            input.value = text;
+            input.focus();
+        }
 
         function handleImageSelect(e) {
             const file = e.target.files[0];
@@ -589,7 +736,7 @@
             if (!prompt && !base64Image && !fileDataPayload) return;
 
             if (ws.readyState !== WebSocket.OPEN) {
-                alert("WebSocket is offline. Refreshing...");
+                alert("WebSocket is reconnecting... Please wait a moment.");
                 return;
             }
 
@@ -597,10 +744,10 @@
             userCard.className = "agent-card user";
             let contentHtml = `<strong>👤 You:</strong> ${prompt || 'Process uploaded content'}`;
             if (base64Image) {
-                contentHtml += `<br><img src="${base64Image}" style="max-width:240px; max-height:160px; margin-top:10px; border-radius:10px; border: 1px solid var(--border-color);">`;
+                contentHtml += `<br><img src="${base64Image}" style="max-width:240px; max-height:160px; margin-top:10px; border-radius:12px; border: 1px solid var(--border-color);">`;
             }
             if (fileNamePayload) {
-                contentHtml += `<br><span class="attached-file-badge">📄 Attached: ${fileNamePayload}</span>`;
+                contentHtml += `<br><span style="font-size:12px; color:#c7d2fe; display:inline-block; margin-top:6px;">📄 Attached: ${fileNamePayload}</span>`;
             }
             userCard.innerHTML = `<div class="agent-content">${contentHtml}</div>`;
             chatContainer.appendChild(userCard);
@@ -616,6 +763,9 @@
             input.value = "";
             clearAttachments();
         }
+
+        // Initialize WebSocket connection on startup
+        connectWebSocket();
     </script>
 </body>
 </html>

@@ -1,6 +1,10 @@
 import os
+import sys
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+
+# On cloud (Render free tier), use /tmp which is always writable
+_IS_CLOUD = os.getenv("RENDER") or os.getenv("RAILWAY_ENVIRONMENT")
 
 class FallbackVectorStore:
     """Fallback vector store if ChromaDB native bindings are initializing."""
@@ -29,8 +33,11 @@ class ChromaMemoryStore:
     """Long-term memory & semantic RAG manager backed by ChromaDB."""
     def __init__(self, persist_dir: Optional[str] = None):
         if not persist_dir:
-            base = Path(__file__).resolve().parent.parent.parent
-            persist_dir = str(base / "chroma_db")
+            if _IS_CLOUD:
+                persist_dir = "/tmp/chroma_db"
+            else:
+                base = Path(__file__).resolve().parent.parent.parent
+                persist_dir = str(base / "chroma_db")
         
         self.persist_dir = persist_dir
         self.store = None
